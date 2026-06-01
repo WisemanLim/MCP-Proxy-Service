@@ -1,0 +1,24 @@
+{
+  "name": "@mcp-proxy/converter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenAPI 정규화·매핑 엔진 (mcp-openapi-server 기반) — PRD §4.1,§4.2",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@mcp-proxy/manifest": "workspace:*",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "@types/node": "^20.17.6"
+  }
+}

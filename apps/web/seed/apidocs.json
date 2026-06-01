@@ -1,0 +1,59 @@
+[
+  {
+    "name": "demo-bookcollection",
+    "ownerEmail": "us@x.com",
+    "sourceType": "inline",
+    "baseUrl": "http://localhost:8000",
+    "status": "approved",
+    "toolsCount": 4,
+    "spec": {
+      "openapi": "3.0.0",
+      "servers": [{ "url": "http://localhost:8000" }],
+      "paths": {
+        "/items": {
+          "get": { "operationId": "listItems", "responses": { "200": { "description": "ok" } } },
+          "post": {
+            "operationId": "createItem",
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": { "name": { "type": "string" }, "price": { "type": "number" } },
+                    "required": ["name"]
+                  }
+                }
+              }
+            },
+            "responses": { "201": { "description": "ok" } }
+          }
+        },
+        "/items/{id}": {
+          "get": {
+            "operationId": "getItem",
+            "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+            "responses": { "200": { "description": "ok" } }
+          },
+          "put": {
+            "operationId": "updateItem",
+            "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": { "name": { "type": "string" }, "price": { "type": "number" } },
+                    "required": ["name"]
+                  }
+                }
+              }
+            },
+            "responses": { "200": { "description": "ok" } }
+          }
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "name": "mcp-proxy-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "REST API → MCP 변환 플랫폼 (선언형 proxy-by-spec)",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "start": "pnpm -r start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.17.6",
+    "otplib": "^12.0.1"
+  }
+}

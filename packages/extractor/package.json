@@ -1,0 +1,18 @@
+{
+  "name": "@mcp-proxy/extractor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "비정형 문서 → OpenAPI LLM 추출 (TS 오케스트레이션, 배치는 python/extractor) — PRD §4.6",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

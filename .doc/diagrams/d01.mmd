@@ -1,0 +1,31 @@
+flowchart LR
+  subgraph ingest [1. 수집·정규화]
+    IN[URL / 파일 / stdin / inline]
+    EXT[비정형 → LLM 추출]
+    NORM[OpenAPI v3 AST + 운영 메타]
+  end
+  subgraph plan [2. 분석·매핑]
+    MAP[Tool/Resource/Exclude 매핑]
+    SCHEMA[단일 입력 스키마 합성]
+  end
+  subgraph runtime [3. 무변경 Proxy 런타임]
+    CORE[공통 코어: parser/executor/auth/normalizer]
+    FILT[필드 필터·페이지네이션]
+  end
+  subgraph deploy [4. 빌드·배포]
+    IMG[(공통 런타임 이미지)]
+    STDIO[stdio 패키지]
+    HTTP[HTTP/SSE preview endpoint]
+  end
+  subgraph onboard [5. 온보딩]
+    CFG[Claude/Cursor/Agent config JSON]
+  end
+  IN --> NORM
+  EXT --> NORM
+  NORM --> MAP --> SCHEMA --> CORE
+  CORE --> FILT
+  IMG --> STDIO
+  IMG --> HTTP
+  SCHEMA -->|manifest 주입| IMG
+  STDIO --> CFG
+  HTTP --> CFG

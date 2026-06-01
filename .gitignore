@@ -1,0 +1,52 @@
+# ───────── 의존성 ─────────
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+
+# ───────── 빌드 산출물·캐시 ─────────
+dist/
+.next/
+.turbo/
+build/
+*.tsbuildinfo
+coverage/
+.gradle/
+
+# ───────── 런타임 데이터 (DB·프록시 런타임) ─────────
+var/
+local.db
+*.db
+
+# ───────── 환경 변수 (.env.example 만 커밋) ─────────
+.env
+.env.local
+.env.dev
+.env.staging
+.env.prod
+!.env.example
+!**/.env.example
+
+# ───────── 에디터·AI 툴·시스템 파일 ─────────
+.DS_Store
+.cursor/
+.omc/
+.idea/
+.vscode/
+*.swp
+*~
+
+# ───────── 로그 ─────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ───────── api-samples: 소스는 커밋, 빌드 산출물만 무시 ─────────
+# (.venv/__pycache__/build/.gradle 는 위 전역 규칙으로 이미 무시됨)
+api-samples/spring-boot/.gradle/
+api-samples/spring-boot/build/
+
+# ───────── 커밋 대상 (락파일 — 재현성) ─────────
+# node: pnpm-lock.yaml, python: uv.lock 은 추적 (무시 금지)
+!pnpm-lock.yaml
+!uv.lock

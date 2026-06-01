@@ -1,0 +1,9 @@
+{
+  "docName": "demo-bookcollection",
+  "tools": ["listItems", "getItem", "createItem", "updateItem"],
+  "regions": ["KR-Seoul", "KR-Busan", "JP-Tokyo", "SG", "US-West", "EU-Frankfurt"],
+  "callers": ["claude-desktop", "cursor", "agent-01", "mcp-proxy"],
+  "regionWeight": [10, 6, 5, 4, 3, 2],
+  "hoursWindow": 48,
+  "failEvery": 11
+}

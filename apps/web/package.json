@@ -1,0 +1,43 @@
+{
+  "name": "@mcp-proxy/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "변환 플랫폼 UI — 문서 업로드 → preview → config snippet (PRD M4)",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "start": "next start -p 3000",
+    "build": "next build",
+    "test": "vitest run",
+    "lint": "next lint",
+    "seed": "tsx --tsconfig scripts/tsconfig.json scripts/seed.ts"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "bcryptjs": "^2.4.3",
+    "otplib": "^12.0.1",
+    "qrcode": "^1.5.4",
+    "jose": "^5.9.0",
+    "@mcp-proxy/converter": "workspace:*",
+    "@mcp-proxy/manifest": "workspace:*",
+    "nodemailer": "^6.9.15",
+    "recharts": "^2.13.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.4",
+    "class-variance-authority": "^0.7.0",
+    "lucide-react": "^0.454.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.6",
+    "@types/react": "^18.3.0",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/qrcode": "^1.5.5",
+    "@types/nodemailer": "^6.4.16",
+    "postcss": "^8.4.47",
+    "autoprefixer": "^10.4.20"
+  }
+}

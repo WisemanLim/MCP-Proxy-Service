@@ -1,0 +1,24 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "httpbin (demo)", "version": "1.0.0" },
+  "servers": [{ "url": "https://httpbin.org" }],
+  "paths": {
+    "/get": {
+      "get": {
+        "operationId": "httpGet",
+        "summary": "GET 에코",
+        "parameters": [
+          { "name": "q", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/uuid": {
+      "get": {
+        "operationId": "uuid",
+        "summary": "UUID 생성",
+        "responses": { "200": { "description": "ok" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "org": "demo-org",
+  "users": [
+    { "email": "ad@x.com", "password": "ad1234", "role": "ADMIN", "status": "active" },
+    { "email": "us@x.com", "password": "us1234", "role": "USER", "status": "active" }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@mcp-proxy/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "무변경 Proxy MCP 런타임 (stdio + Streamable HTTP/SSE)",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "TRANSPORT=${TRANSPORT:-http} PORT=${PORT:-8080} SPEC_PATH=${SPEC_PATH:-examples/spec.json} MANIFEST_PATH=${MANIFEST_PATH:-examples/manifest.json} tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@mcp-proxy/manifest": "workspace:*",
+    "@mcp-proxy/converter": "workspace:*",
+    "@nestjs/common": "^10.4.0",
+    "@nestjs/core": "^10.4.0",
+    "@nestjs/platform-express": "^10.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "@types/node": "^20.17.6"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "httpbin-demo",
+  "baseUrl": "https://httpbin.org",
+  "fieldsPolicy": { "defaultLimit": 20, "truncateBytes": 2048, "maxDepth": 4 }
+}

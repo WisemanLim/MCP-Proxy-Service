@@ -1,0 +1,22 @@
+{
+  "name": "@mcp-proxy/manifest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "proxy manifest 스키마·검증·정책 병합 (spec_auth / runtime_auth_policy / fields policy) — PRD §4.3,§4.4",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "@types/node": "^20.17.6"
+  }
+}

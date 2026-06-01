@@ -1,0 +1,20 @@
+# dev/staging 오버레이 — 핫리로드 소스 마운트.
+# base docker-compose.yml 이 postgres/redis/api/web/extractor 정의. 여기선 dev 편의만 추가.
+# 사용: docker compose up  (override 자동 병합)
+services:
+  api:
+    command: pnpm dev
+    volumes:
+      - ./apps/api/src:/app/src
+    environment:
+      TRANSPORT: http
+
+  web:
+    command: pnpm dev
+    volumes:
+      - ./apps/web:/app
+
+  extractor:
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./python/extractor:/app
