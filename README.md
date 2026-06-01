@@ -145,6 +145,21 @@ tsc -b apps/api                        # 빌드 검증
 - 인증 [RESULTS-auth.md](./test/RESULTS-auth.md)
 - 조직·승인 워크플로 [RESULTS-workflow.md](./test/RESULTS-workflow.md)
 
+## CI/CD
+
+GitHub Actions 워크플로 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — **현재 비활성(전체 주석)**. push/PR 시 실행 안 됨.
+정의 잡: node(`pnpm lint`·`test`·`build`) + python(`ruff`·`pytest`).
+
+**재개 방법** — `ci.yml`의 `name:`부터 끝까지 모든 줄의 선행 `# ` 제거 후 push:
+
+```bash
+# 파일 상단 안내 블록(─── 구분선) 먼저 삭제 후
+sed -i '' 's/^# //' .github/workflows/ci.yml
+git add .github/workflows/ci.yml && git commit -m "ci: enable" && git push
+```
+
+또는 VS Code에서 `name:`~끝 블록 선택 → `Cmd+/`(주석 토글). 비활성화는 반대로 전체 주석.
+
 ## 라이선스
 
 채택 오픈소스(`mcp-openapi-server` 등) 라이선스는 포크/임베드 전 검토. PRD §10 참조.

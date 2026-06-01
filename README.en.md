@@ -145,6 +145,21 @@ Current status — vitest 96 + python 5 + live smoke PASS:
 - auth [RESULTS-auth.md](./test/RESULTS-auth.md)
 - org·approval workflow [RESULTS-workflow.md](./test/RESULTS-workflow.md)
 
+## CI/CD
+
+GitHub Actions workflow [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — **currently disabled (fully commented out)**. Does not run on push/PR.
+Defined jobs: node (`pnpm lint`·`test`·`build`) + python (`ruff`·`pytest`).
+
+**To re-enable** — uncomment every line from `name:` to the end (strip leading `# `), then push:
+
+```bash
+# delete the top notice block (─── divider) first, then
+sed -i '' 's/^# //' .github/workflows/ci.yml
+git add .github/workflows/ci.yml && git commit -m "ci: enable" && git push
+```
+
+Or in VS Code select the `name:`–end block → `Cmd+/` (toggle comment). To disable again, comment the whole file back.
+
 ## License
 
 Review the licenses of adopted open source (e.g. `mcp-openapi-server`) before forking/embedding. See PRD §10.
