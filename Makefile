@@ -1,9 +1,13 @@
-.PHONY: dev test build deploy up down install clean build-api seed
+.PHONY: dev test build deploy up up-all down down-all install clean build-api seed
 
 ENV ?= local
 
-up:      ; docker compose up -d
-down:    ; docker compose down
+FULL := docker compose -f docker-compose.yml -f docker-compose.full.yml
+
+up:       ; docker compose up -d        # 인프라만(postgres+redis). 앱은 make dev
+up-all:   ; $(FULL) up -d --build       # 풀 docker: 인프라 + api/web/extractor 빌드·기동
+down:     ; docker compose down
+down-all: ; $(FULL) down
 install: ; pnpm install && cd python/extractor && uv sync
 
 # apps/api dist 선빌드 → 웹이 자동 기동하는 per-doc 프록시가 항상 최신 코드(reportUsage 등) 사용
@@ -16,7 +20,7 @@ dev: build-api
 	pnpm -r --parallel dev
 
 test:    ; pnpm -r test && cd python/extractor && uv run pytest
-build:   ; docker build -t mcp-proxy/api ./apps/api && docker build -t mcp-proxy/web ./apps/web
+build:   ; docker build -t mcp-proxy/api -f apps/api/Dockerfile . && docker build -t mcp-proxy/web -f apps/web/Dockerfile .
 deploy:  ; helm upgrade --install mcp-proxy ./deploy/helm || echo "helm chart 미구성 (M6)"
 
 # 전체 환경 초기화: dev 프로세스·자동 프록시 종료 + 빌드/캐시/DB/프록시 런타임 삭제

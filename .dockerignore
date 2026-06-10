@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+**/dist
+**/var
+**/__pycache__
+**/.venv
+**/.omc
+.git
+*.db

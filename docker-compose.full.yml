@@ -1,0 +1,40 @@
+# 풀 docker 빌드 오버레이 — `make up-all`로 base(docker-compose.yml)와 병합.
+# 앱 3종을 이미지로 빌드해 기동. (네이티브 dev는 `make dev` 사용)
+# 사용: docker compose -f docker-compose.yml -f docker-compose.full.yml up -d --build
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - .env.${ENV:-dev}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    env_file:
+      - .env.${ENV:-dev}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  extractor:
+    build:
+      context: ./python/extractor
+      dockerfile: Dockerfile
+    env_file:
+      - .env.${ENV:-dev}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy

@@ -257,12 +257,12 @@ export function searchOrgs(db: DatabaseSync, q: string): OrgRow[] {
 // ───────── api_docs ─────────
 export function insertApiDoc(
   db: DatabaseSync,
-  opts: { ownerId: string; orgId: string | null; name: string; sourceType: DocSource; sourceRef?: string | null; specInline?: string | null; baseUrl?: string | null },
+  opts: { ownerId: string; orgId: string | null; name: string; sourceType: DocSource; sourceRef?: string | null; specInline?: string | null; baseUrl?: string | null; proxyPort?: number | null },
 ): ApiDocRow {
   const id = rid("doc");
   db.prepare(
-    "INSERT INTO api_docs (id,owner_id,org_id,name,source_type,source_ref,spec_inline,base_url,status) VALUES (?,?,?,?,?,?,?,?,'pending')",
-  ).run(id, opts.ownerId, opts.orgId, opts.name, opts.sourceType, opts.sourceRef ?? null, opts.specInline ?? null, opts.baseUrl ?? null);
+    "INSERT INTO api_docs (id,owner_id,org_id,name,source_type,source_ref,spec_inline,base_url,proxy_port,status) VALUES (?,?,?,?,?,?,?,?,?,'pending')",
+  ).run(id, opts.ownerId, opts.orgId, opts.name, opts.sourceType, opts.sourceRef ?? null, opts.specInline ?? null, opts.baseUrl ?? null, opts.proxyPort ?? null);
   return findApiDocById(db, id)!;
 }
 export function findApiDocById(db: DatabaseSync, id: string): ApiDocRow | undefined {
@@ -280,16 +280,17 @@ export function listAllApiDocs(db: DatabaseSync): ApiDocRow[] {
 export function updateApiDoc(
   db: DatabaseSync,
   id: string,
-  patch: { name?: string; sourceRef?: string | null; specInline?: string | null; baseUrl?: string | null },
+  patch: { name?: string; sourceRef?: string | null; specInline?: string | null; baseUrl?: string | null; proxyPort?: number | null },
 ): void {
   const cur = findApiDocById(db, id)!;
   db.prepare(
-    "UPDATE api_docs SET name=?, source_ref=?, spec_inline=?, base_url=?, status='pending', reason=NULL, updated_at=datetime('now') WHERE id=?",
+    "UPDATE api_docs SET name=?, source_ref=?, spec_inline=?, base_url=?, proxy_port=?, status='pending', reason=NULL, updated_at=datetime('now') WHERE id=?",
   ).run(
     patch.name ?? cur.name,
     patch.sourceRef !== undefined ? patch.sourceRef : cur.source_ref,
     patch.specInline !== undefined ? patch.specInline : cur.spec_inline,
     patch.baseUrl !== undefined ? patch.baseUrl : cur.base_url,
+    patch.proxyPort !== undefined ? patch.proxyPort : cur.proxy_port,
     id,
   );
 }
@@ -298,6 +299,11 @@ export function setApiDocProxyPort(db: DatabaseSync, id: string, port: number | 
 }
 export function listUsedProxyPorts(db: DatabaseSync): number[] {
   return (db.prepare("SELECT proxy_port FROM api_docs WHERE proxy_port IS NOT NULL").all() as Array<{ proxy_port: number }>).map((r) => r.proxy_port);
+}
+/** 해당 포트를 예약/사용 중인 문서 id (없으면 null). 사용자 지정 포트 중복 검사용. */
+export function findDocIdByProxyPort(db: DatabaseSync, port: number): string | null {
+  const r = db.prepare("SELECT id FROM api_docs WHERE proxy_port=?").get(port) as { id: string } | undefined;
+  return r?.id ?? null;
 }
 export function setApiDocStatus(db: DatabaseSync, id: string, status: DocStatus, reason: string | null, toolsCount: number | null): void {
   db.prepare("UPDATE api_docs SET status=?, reason=?, tools_count=?, updated_at=datetime('now') WHERE id=?")

@@ -25,6 +25,7 @@ export default function ApiDocsPage() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [port, setPort] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [guideDoc, setGuideDoc] = useState<ApiDoc | null>(null);
@@ -39,18 +40,19 @@ export default function ApiDocsPage() {
   }
   useEffect(() => { load(); }, []);
 
-  function resetForm() { setEditing(null); setName(""); setUrl(""); setBaseUrl(""); setMode("url"); }
+  function resetForm() { setEditing(null); setName(""); setUrl(""); setBaseUrl(""); setPort(""); setMode("url"); }
   function startEdit(d: ApiDoc) {
     setEditing(d.id); setMode(d.sourceType === "endpoints" ? "endpoints" : "url");
-    setName(d.name); setUrl(d.sourceRef ?? ""); setBaseUrl(d.baseUrl ?? "");
+    setName(d.name); setUrl(d.sourceRef ?? ""); setBaseUrl(d.baseUrl ?? ""); setPort(d.proxyPort != null ? String(d.proxyPort) : "");
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
   async function create(e: React.FormEvent) {
     e.preventDefault(); setError(null);
+    const proxyPort = port.trim() ? Number(port) : undefined;
     try {
-      if (editing) await api.editDoc(editing, { name, baseUrl: baseUrl || undefined, sourceRef: mode === "url" ? url : undefined });
-      else if (mode === "url") await api.createDoc({ name, sourceType: "url", sourceRef: url, baseUrl: baseUrl || undefined });
-      else await api.createDoc({ name, sourceType: "endpoints", baseUrl });
+      if (editing) await api.editDoc(editing, { name, baseUrl: baseUrl || undefined, sourceRef: mode === "url" ? url : undefined, proxyPort });
+      else if (mode === "url") await api.createDoc({ name, sourceType: "url", sourceRef: url, baseUrl: baseUrl || undefined, proxyPort });
+      else await api.createDoc({ name, sourceType: "endpoints", baseUrl, proxyPort });
       resetForm(); await load();
     } catch (err) { setError((err as Error).message); }
   }
@@ -106,6 +108,7 @@ export default function ApiDocsPage() {
             ) : (
               <input className={`${inp} w-[300px]`} placeholder="base URL (예: http://localhost:8000) — 필수" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} required />
             )}
+            <input className={`${inp} w-[170px]`} type="number" min={20000} max={59999} placeholder="MCP 포트 (선택, 비우면 자동)" value={port} onChange={(e) => setPort(e.target.value)} />
             <Button>{editing ? "저장" : "등록"}</Button>
             {editing && <Button type="button" variant="outline" onClick={resetForm}>취소</Button>}
           </form>

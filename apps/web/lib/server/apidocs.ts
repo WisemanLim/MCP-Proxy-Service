@@ -4,8 +4,8 @@ import { loadSpecFromString, loadSpecInline, convert, type OpenAPISpec } from "@
 import { parseManifest } from "@mcp-proxy/manifest";
 import type { JwtClaims } from "./auth-server";
 import { AuthError } from "./auth-server";
-import { startProxy, stopProxy, allocateProxyPort, killAllProxies } from "./proxy-runtime";
-import { setApiDocProxyPort } from "./db";
+import { startProxy, stopProxy, allocateProxyPort, killAllProxies, isPortFree, PORT_MIN, PORT_MAX } from "./proxy-runtime";
+import { setApiDocProxyPort, findDocIdByProxyPort } from "./db";
 import {
   type ApiDocRow,
   type DocSource,
@@ -38,8 +38,27 @@ export function toPublicDoc(d: ApiDocRow) {
     toolsCount: d.tools_count,
     ownerId: d.owner_id,
     orgId: d.org_id,
+    proxyPort: d.proxy_port,
     updatedAt: d.updated_at,
   };
+}
+
+/**
+ * 사용자 지정 프록시 포트 검증 — 범위·중복(다른 문서)·OS 점유.
+ * excludeId: 수정 시 자기 자신은 중복 검사에서 제외.
+ * 위반 시 AuthError(400) throw → 등록/수정 거부, 사용자에게 다른 포트 유도.
+ */
+async function validateProxyPort(db: DatabaseSync, port: number, excludeId?: string): Promise<void> {
+  if (!Number.isInteger(port) || port < PORT_MIN || port >= PORT_MAX) {
+    throw new AuthError(`port_out_of_range: ${PORT_MIN}~${PORT_MAX - 1} 범위의 정수만 가능`, 400);
+  }
+  const owner = findDocIdByProxyPort(db, port);
+  if (owner && owner !== excludeId) {
+    throw new AuthError(`port_in_use: 포트 ${port} 은 다른 문서가 사용 중 — 다른 포트를 지정하세요`, 400);
+  }
+  if (!(await isPortFree(port))) {
+    throw new AuthError(`port_occupied: 포트 ${port} 이 이미 점유됨 — 다른 포트를 지정하세요`, 400);
+  }
 }
 
 /** USER: 본인 / ADMIN: 같은 조직 / SUPERVISOR: 전체. */
@@ -55,20 +74,22 @@ export function listDocsFor(db: DatabaseSync, actor: JwtClaims): ApiDocRow[] {
  * - endpoints: 개별 REST API 등록(이후 addEndpoint로 추가) — baseUrl 필수
  * - inline: 스펙 JSON 직접(주로 테스트)
  */
-export function createDoc(
+export async function createDoc(
   db: DatabaseSync,
   actor: JwtClaims,
-  input: { name: string; sourceType: DocSource; sourceRef?: string; specInline?: string; baseUrl?: string },
-): ApiDocRow {
+  input: { name: string; sourceType: DocSource; sourceRef?: string; specInline?: string; baseUrl?: string; proxyPort?: number },
+): Promise<ApiDocRow> {
   if (!input.name) throw new AuthError("name_required", 400);
   if (input.sourceType === "url" && !input.sourceRef) throw new AuthError("url_required", 400);
   if (input.sourceType === "inline" && !input.specInline) throw new AuthError("spec_required", 400);
   if (input.sourceType === "endpoints" && !input.baseUrl) throw new AuthError("base_url_required", 400);
+  if (input.proxyPort != null) await validateProxyPort(db, input.proxyPort);
   return insertApiDoc(db, {
     ownerId: actor.sub,
     orgId: actor.orgId,
     name: input.name,
     sourceType: input.sourceType,
+    proxyPort: input.proxyPort ?? null,
     sourceRef: input.sourceRef ?? null,
     specInline: input.specInline ?? null,
     baseUrl: input.baseUrl ?? null,
@@ -150,10 +171,11 @@ function ownerOnly(actor: JwtClaims, doc: ApiDocRow) {
   if (doc.owner_id !== actor.sub) throw new AuthError("forbidden", 403);
 }
 
-export function editDoc(db: DatabaseSync, actor: JwtClaims, id: string, patch: { name?: string; sourceRef?: string; specInline?: string; baseUrl?: string }): ApiDocRow {
+export async function editDoc(db: DatabaseSync, actor: JwtClaims, id: string, patch: { name?: string; sourceRef?: string; specInline?: string; baseUrl?: string; proxyPort?: number }): Promise<ApiDocRow> {
   const doc = findApiDocById(db, id);
   if (!doc) throw new AuthError("not_found", 404);
   ownerOnly(actor, doc);
+  if (patch.proxyPort != null && patch.proxyPort !== doc.proxy_port) await validateProxyPort(db, patch.proxyPort, id);
   updateApiDoc(db, id, patch); // status → pending 재설정
   stopProxy(id); // 변경되면 재승인 필요 → 기존 프록시 중지
   return findApiDocById(db, id)!;

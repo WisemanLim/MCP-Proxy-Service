@@ -39,7 +39,7 @@ export interface ProxyStatus { running: boolean; port: number; url: string; star
 export interface ApiDoc {
   id: string; name: string; sourceType: "url" | "inline" | "endpoints"; sourceRef: string | null;
   baseUrl: string | null; status: "pending" | "approved" | "rejected"; reason: string | null;
-  toolsCount: number | null; ownerId: string; orgId: string | null; updatedAt: string;
+  toolsCount: number | null; ownerId: string; orgId: string | null; proxyPort: number | null; updatedAt: string;
 }
 export interface Endpoint { id: string; doc_id: string; method: string; path: string; summary: string | null }
 export interface DocPreview {
@@ -73,9 +73,9 @@ export const api = {
     call<{ ok: boolean }>("/api/auth/password", { body: { currentPassword, newPassword } }),
   // API 문서
   listDocs: () => call<{ items: ApiDoc[] }>("/api/apidocs"),
-  createDoc: (body: { name: string; sourceType: "url" | "inline" | "endpoints"; sourceRef?: string; specInline?: string; baseUrl?: string }) =>
+  createDoc: (body: { name: string; sourceType: "url" | "inline" | "endpoints"; sourceRef?: string; specInline?: string; baseUrl?: string; proxyPort?: number }) =>
     call<ApiDoc>("/api/apidocs", { body }),
-  editDoc: (id: string, body: { name?: string; sourceRef?: string; baseUrl?: string }) =>
+  editDoc: (id: string, body: { name?: string; sourceRef?: string; baseUrl?: string; proxyPort?: number }) =>
     call<ApiDoc>(`/api/apidocs/${id}`, { method: "PATCH", body }),
   deleteDoc: (id: string) => call<{ ok: boolean }>(`/api/apidocs/${id}`, { method: "DELETE" }),
   previewDoc: (id: string) => call<DocPreview>(`/api/apidocs/${id}/preview`),

@@ -11,12 +11,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
   try {
     const actor = await requireActive(req);
     const { id } = await params;
-    const { name, sourceRef, specInline, baseUrl } = await req.json();
-    const doc = editDoc(await db(), actor, id, {
+    const { name, sourceRef, specInline, baseUrl, proxyPort } = await req.json();
+    const doc = await editDoc(await db(), actor, id, {
       name: name ? String(name) : undefined,
       sourceRef: sourceRef !== undefined ? String(sourceRef) : undefined,
       specInline: specInline !== undefined ? (typeof specInline === "string" ? specInline : JSON.stringify(specInline)) : undefined,
       baseUrl: baseUrl !== undefined ? String(baseUrl) : undefined,
+      proxyPort: proxyPort != null && proxyPort !== "" ? Number(proxyPort) : undefined,
     });
     return Response.json(toPublicDoc(doc));
   } catch (e) {

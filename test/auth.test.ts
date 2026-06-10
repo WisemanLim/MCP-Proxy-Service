@@ -197,41 +197,41 @@ describe("API 문서 워크플로 (Part A)", () => {
 
   it("TC-W15 USER 등록(inline) → pending", async () => {
     const { user } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC, baseUrl: "https://api.example.com" });
+    const doc = await createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC, baseUrl: "https://api.example.com" });
     expect(doc.status).toBe("pending");
     expect(doc.owner_id).toBe(user.id);
   });
   it("TC-W16 소유자 수정 → pending 재설정 / 비소유자 불가", async () => {
     const { user, admin } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
-    const edited = editDoc(db, claims(user), doc.id, { name: "demo2" });
+    const doc = await createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
+    const edited = await editDoc(db, claims(user), doc.id, { name: "demo2" });
     expect(edited.name).toBe("demo2");
-    expect(() => editDoc(db, claims(admin), doc.id, { name: "x" })).toThrow(AuthError);
+    await expect(editDoc(db, claims(admin), doc.id, { name: "x" })).rejects.toThrow(AuthError);
   });
   it("TC-W17 ADMIN 미리보기 → 정상(ok) + tools", async () => {
     const { user, admin } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
+    const doc = await createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
     const p = await previewDoc(db, claims(admin), doc.id);
     expect(p.ok).toBe(true);
     expect(p.tools?.some((t) => t.name === "ping")).toBe(true);
   });
   it("TC-W18 ADMIN 승인 → approved + tools_count", async () => {
     const { user, admin } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
+    const doc = await createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
     const r = await approveDoc(db, claims(admin), doc.id);
     expect(r.status).toBe("approved");
     expect(r.tools_count).toBe(1);
   });
   it("TC-W19 ADMIN 반려 → rejected + 사유", async () => {
     const { user, admin } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
+    const doc = await createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
     const r = rejectDoc(db, claims(admin), doc.id, "스펙 미흡");
     expect(r.status).toBe("rejected");
     expect(r.reason).toBe("스펙 미흡");
   });
   it("TC-W20 다른 조직 ADMIN은 검토 불가", async () => {
     const { user } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
+    const doc = await createDoc(db, claims(user), { name: "demo", sourceType: "inline", specInline: SAMPLE_SPEC });
     const sup = findUserByEmail(db, "sup@x.com")!;
     let other = await mkAdmin("other");
     approveUser(db, claims(sup), other.id); other = findUserById(db, other.id)!;
@@ -239,20 +239,20 @@ describe("API 문서 워크플로 (Part A)", () => {
   });
   it("TC-W21 잘못된 inline 스펙 승인 거부", async () => {
     const { user, admin } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "bad", sourceType: "inline", specInline: JSON.stringify({ not: "openapi" }) });
+    const doc = await createDoc(db, claims(user), { name: "bad", sourceType: "inline", specInline: JSON.stringify({ not: "openapi" }) });
     await expect(approveDoc(db, claims(admin), doc.id)).rejects.toThrow(AuthError);
   });
 
   // ── 모드 2: 개별 endpoint 등록 (PRD A1 두번째 방식) ──
   it("TC-W23 endpoints 모드 생성 → baseUrl 필수", async () => {
     const { user } = await activeUser();
-    expect(() => createDoc(db, claims(user), { name: "ep", sourceType: "endpoints" })).toThrow(AuthError);
-    const doc = createDoc(db, claims(user), { name: "ep", sourceType: "endpoints", baseUrl: "https://api.example.com" });
+    await expect(createDoc(db, claims(user), { name: "ep", sourceType: "endpoints" })).rejects.toThrow(AuthError);
+    const doc = await createDoc(db, claims(user), { name: "ep", sourceType: "endpoints", baseUrl: "https://api.example.com" });
     expect(doc.source_type).toBe("endpoints");
   });
   it("TC-W24 개별 endpoint 추가 → 합성 스펙 승인 (path {param} 자동)", async () => {
     const { user, admin } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "books", sourceType: "endpoints", baseUrl: "https://api.example.com" });
+    const doc = await createDoc(db, claims(user), { name: "books", sourceType: "endpoints", baseUrl: "https://api.example.com" });
     addEndpoint(db, claims(user), doc.id, "get", "/api/books/", "Get Books");
     addEndpoint(db, claims(user), doc.id, "get", "/api/books/{isbn}", "Get Book");
     addEndpoint(db, claims(user), doc.id, "delete", "/api/books/{isbn}", "Delete Book");
@@ -266,7 +266,7 @@ describe("API 문서 워크플로 (Part A)", () => {
   });
   it("TC-W25 endpoint 추가 시 문서 pending 재설정 / 삭제 / 소유자만", async () => {
     const { user, admin } = await activeUser();
-    const doc = createDoc(db, claims(user), { name: "books", sourceType: "endpoints", baseUrl: "https://api.example.com" });
+    const doc = await createDoc(db, claims(user), { name: "books", sourceType: "endpoints", baseUrl: "https://api.example.com" });
     const ep = addEndpoint(db, claims(user), doc.id, "get", "/ping");
     await approveDoc(db, claims(admin), doc.id); // approved
     addEndpoint(db, claims(user), doc.id, "post", "/ping2"); // 변경 → pending
@@ -340,7 +340,7 @@ describe("대시보드 — 알림·통계·사용내역", () => {
 
   it("TC-D6 MCP 사용내역 기록·조회", async () => {
     const { user, admin } = await activeSet();
-    const doc = createDoc(db, claims(user), { name: "books", sourceType: "inline", specInline: SAMPLE_SPEC });
+    const doc = await createDoc(db, claims(user), { name: "books", sourceType: "inline", specInline: SAMPLE_SPEC });
     await approveDoc(db, claims(admin), doc.id);
     insertApiUsage(db, { docId: doc.id, orgId: user.org_id, caller: "mcp-proxy", tool: "ping", region: "KR-Seoul", ok: true });
     const hist = usageHistory(db, doc.id);
@@ -351,7 +351,7 @@ describe("대시보드 — 알림·통계·사용내역", () => {
 
   it("TC-D7 usageStats 집계 + 스코프", async () => {
     const { user, admin, sup } = await activeSet();
-    const doc = createDoc(db, claims(user), { name: "books", sourceType: "inline", specInline: SAMPLE_SPEC });
+    const doc = await createDoc(db, claims(user), { name: "books", sourceType: "inline", specInline: SAMPLE_SPEC });
     await approveDoc(db, claims(admin), doc.id);
     insertApiUsage(db, { docId: doc.id, orgId: user.org_id, caller: "cursor", tool: "ping", region: "KR-Seoul", ok: true });
     insertApiUsage(db, { docId: doc.id, orgId: user.org_id, caller: "cursor", tool: "ping", region: "JP-Tokyo", ok: false });

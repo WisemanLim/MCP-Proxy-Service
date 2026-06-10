@@ -21,14 +21,15 @@ const SOURCES = ["url", "inline", "endpoints"] as const;
 export async function POST(req: Request) {
   try {
     const actor = await requireActive(req, "USER", "ADMIN", "SUPERVISOR");
-    const { name, sourceType, sourceRef, specInline, baseUrl } = await req.json();
+    const { name, sourceType, sourceRef, specInline, baseUrl, proxyPort } = await req.json();
     const st = SOURCES.includes(sourceType) ? sourceType : "url";
-    const doc = createDoc(await db(), actor, {
+    const doc = await createDoc(await db(), actor, {
       name: String(name ?? ""),
       sourceType: st,
       sourceRef: sourceRef ? String(sourceRef) : undefined,
       specInline: specInline ? (typeof specInline === "string" ? specInline : JSON.stringify(specInline)) : undefined,
       baseUrl: baseUrl ? String(baseUrl) : undefined,
+      proxyPort: proxyPort != null && proxyPort !== "" ? Number(proxyPort) : undefined,
     });
     return Response.json(toPublicDoc(doc), { status: 201 });
   } catch (e) {

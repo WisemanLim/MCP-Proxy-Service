@@ -16,8 +16,8 @@ import { AuthConfig } from "./config";
  * - 포트 충돌 회피: DB 할당 목록 + 실행 중 맵 + OS 바인드 검사로 제외.
  */
 
-const PORT_MIN = 20000;
-const PORT_MAX = 60000; // 미만
+export const PORT_MIN = 20000;
+export const PORT_MAX = 60000; // 미만
 
 export function slugFor(name: string): string {
   return name.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "api";
@@ -29,7 +29,7 @@ const g = globalThis as unknown as { __mcpProxies?: Map<string, Proc> };
 const procs: Map<string, Proc> = (g.__mcpProxies ??= new Map());
 
 /** 포트가 비어 있는지 OS 바인드로 확인 (127.0.0.1). */
-function isPortFree(port: number): Promise<boolean> {
+export function isPortFree(port: number): Promise<boolean> {
   return new Promise((res) => {
     const s = createServer();
     s.once("error", () => res(false));
