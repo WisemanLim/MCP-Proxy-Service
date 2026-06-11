@@ -1,0 +1,10 @@
+{
+  "name": "books-cli",
+  "mode": "endpoints",
+  "baseUrl": "http://localhost:8000",
+  "endpoints": [
+    { "method": "GET", "path": "/books", "summary": "list books" },
+    { "method": "GET", "path": "/books/{id}", "summary": "get book by id" },
+    { "method": "POST", "path": "/books", "summary": "create book" }
+  ]
+}

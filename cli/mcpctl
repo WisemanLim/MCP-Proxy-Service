@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# mcpctl — MCP Proxy Service CLI (curl + jq wrapper)
+# REST API 등록·승인을 웹포털 없이 JSON 정의 + curl 로 처리한다.
+# 전제: 웹포털 REST가 Bearer 토큰 인증 (Authorization: Bearer <token>).
+set -euo pipefail
+
+# ───── 설정 ─────
+DEFAULT_URL="${MCP_PROXY_URL:-http://localhost:3000}"
+SESSION_DIR="${MCP_PROXY_HOME:-$HOME/.mcpproxy}"
+PROFILE="default"
+
+die() { echo "error: $*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "$1 필요 (설치 후 재시도)"; }
+need curl; need jq
+
+session_file() { echo "$SESSION_DIR/$PROFILE.json"; }
+
+load_session() {
+  local f; f="$(session_file)"
+  [ -f "$f" ] || die "로그인 필요: mcpctl login -e <email> -p <pass> [-P $PROFILE]"
+  URL="$(jq -r '.url' "$f")"
+  TOKEN="$(jq -r '.token' "$f")"
+  [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || die "세션 토큰 없음 — 재로그인"
+}
+
+# api METHOD PATH [JSON_BODY] — 인증 호출. 본문 stdout, 비2xx면 에러 종료.
+api() {
+  local method="$1" path="$2" body="${3:-}" code resp tmp
+  tmp="$(mktemp)"
+  if [ -n "$body" ]; then
+    code="$(curl -sS -X "$method" "$URL$path" \
+      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d "$body" -o "$tmp" -w '%{http_code}')"
+  else
+    code="$(curl -sS -X "$method" "$URL$path" \
+      -H "Authorization: Bearer $TOKEN" -o "$tmp" -w '%{http_code}')"
+  fi
+  resp="$(cat "$tmp")"; rm -f "$tmp"
+  if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+    echo "$resp" | jq . >&2 2>/dev/null || echo "$resp" >&2
+    die "HTTP $code ($method $path)"
+  fi
+  echo "$resp"
+}
+
+# ───── 명령 ─────
+cmd_login() {
+  local email="" pass="" totp="" url="$DEFAULT_URL"
+  while [ $# -gt 0 ]; do case "$1" in
+    -e|--email) email="$2"; shift 2;;
+    -p|--password) pass="$2"; shift 2;;
+    -t|--totp) totp="$2"; shift 2;;
+    -u|--url) url="$2"; shift 2;;
+    *) die "login: 알 수 없는 옵션 $1";;
+  esac; done
+  [ -n "$email" ] && [ -n "$pass" ] || die "login -e <email> -p <password> [-t <totp>] [-u <url>]"
+  local body resp code tmp
+  body="$(jq -n --arg e "$email" --arg p "$pass" --arg t "$totp" \
+    '{email:$e,password:$p} + (if $t=="" then {} else {totp:$t} end)')"
+  tmp="$(mktemp)"
+  code="$(curl -sS -X POST "$url/api/auth/login" -H "Content-Type: application/json" \
+    -d "$body" -o "$tmp" -w '%{http_code}')"
+  resp="$(cat "$tmp")"; rm -f "$tmp"
+  [ "$code" = "200" ] || { echo "$resp" >&2; die "로그인 실패 (HTTP $code)"; }
+  mkdir -p "$SESSION_DIR"
+  echo "$resp" | jq --arg url "$url" \
+    '{url:$url, token:.token, email:.user.email, role:.user.role, status:.user.status, orgId:.user.orgId}' \
+    > "$(session_file)"
+  chmod 600 "$(session_file)"
+  echo "$resp" | jq -r '"로그인 OK: \(.user.email) (\(.user.role)/\(.user.status)) → '"$(session_file)"'"'
+}
+
+cmd_whoami() {
+  load_session
+  api GET /api/auth/me | jq .
+}
+
+cmd_logout() {
+  rm -f "$(session_file)" && echo "로그아웃: $(session_file) 삭제"
+}
+
+# register -f <def.json>
+cmd_register() {
+  local file=""
+  while [ $# -gt 0 ]; do case "$1" in
+    -f|--file) file="$2"; shift 2;;
+    *) die "register: 알 수 없는 옵션 $1";;
+  esac; done
+  [ -n "$file" ] && [ -f "$file" ] || die "register -f <정의.json>"
+  load_session
+  jq -e . "$file" >/dev/null 2>&1 || die "JSON 파싱 실패: $file"
+
+  local mode name; mode="$(jq -r '.mode // "url"' "$file")"; name="$(jq -r '.name // empty' "$file")"
+  [ -n "$name" ] || die "정의에 name 필수"
+
+  local body
+  case "$mode" in
+    url)
+      body="$(jq '{name, sourceType:"url", sourceRef, baseUrl, proxyPort} | with_entries(select(.value!=null))' "$file")"
+      ;;
+    endpoints)
+      body="$(jq '{name, sourceType:"endpoints", baseUrl, proxyPort} | with_entries(select(.value!=null))' "$file")"
+      ;;
+    inline)
+      body="$(jq '{name, sourceType:"inline", specInline:.spec} | with_entries(select(.value!=null))' "$file")"
+      ;;
+    *) die "mode 는 url|endpoints|inline 중 하나";;
+  esac
+
+  local doc id; doc="$(api POST /api/apidocs "$body")"; id="$(echo "$doc" | jq -r '.id')"
+  echo "등록: id=$id name=$name mode=$mode status=$(echo "$doc" | jq -r '.status')"
+
+  if [ "$mode" = "endpoints" ]; then
+    local n; n="$(jq '.endpoints | length' "$file")"
+    [ "$n" -gt 0 ] || die "endpoints 모드인데 endpoints 배열 비어있음"
+    local i ep
+    for ((i=0; i<n; i++)); do
+      ep="$(jq ".endpoints[$i] | {method, path, summary} | with_entries(select(.value!=null))" "$file")"
+      api POST "/api/apidocs/$id/endpoints" "$ep" \
+        | jq -r '"  + endpoint \(.method) \(.path)"'
+    done
+    echo "  (endpoints ${n}개 추가 → 문서 pending)"
+  fi
+  echo "$doc" | jq .
+}
+
+cmd_list() {
+  load_session
+  api GET /api/apidocs \
+    | jq -r '.items[] | "\(.id)\t\(.status)\t\(.sourceType)\t\(.name)\t\(.baseUrl // "-")"' \
+    | { echo -e "ID\tSTATUS\tMODE\tNAME\tBASEURL"; cat; } | column -t -s $'\t'
+}
+
+cmd_pending() {
+  load_session
+  local items; items="$(api GET /api/apidocs)"
+  echo "$items" | jq -e '[.items[] | select(.status=="pending")] | length > 0' >/dev/null \
+    || { echo "승인 대기 없음"; return 0; }
+  echo "$items" \
+    | jq -r '.items[] | select(.status=="pending") | "\(.id)\t\(.sourceType)\t\(.name)\t\(.baseUrl // "-")\t\(.ownerId)"' \
+    | { echo -e "ID\tMODE\tNAME\tBASEURL\tOWNER"; cat; } | column -t -s $'\t'
+}
+
+cmd_preview() {
+  load_session; local id="${1:-}"; [ -n "$id" ] || die "preview <id>"
+  api GET "/api/apidocs/$id/preview" | jq .
+}
+
+cmd_approve() {
+  load_session; local id="${1:-}"; [ -n "$id" ] || die "approve <id>"
+  api POST "/api/apidocs/$id/approve" \
+    | jq -r '"승인 OK: id=\(.id) name=\(.name) status=\(.status) tools=\(.toolsCount) port=\(.proxyPort // "-")"'
+}
+
+cmd_reject() {
+  load_session; local id="" reason=""
+  id="${1:-}"; shift || true
+  while [ $# -gt 0 ]; do case "$1" in
+    -r|--reason) reason="$2"; shift 2;;
+    *) die "reject <id> -r <reason>";;
+  esac; done
+  [ -n "$id" ] && [ -n "$reason" ] || die "reject <id> -r <reason>"
+  api POST "/api/apidocs/$id/reject" "$(jq -n --arg r "$reason" '{reason:$r}')" \
+    | jq -r '"반려 OK: id=\(.id) name=\(.name) status=\(.status) reason=\(.reason)"'
+}
+
+usage() {
+  cat <<'EOF'
+mcpctl — MCP Proxy Service CLI (curl + jq)
+
+전역 옵션: -P <profile>  세션 프로파일 (기본 default; User/Admin 분리용)
+           -u <url>      웹 베이스 URL (login 시; 기본 $MCP_PROXY_URL 또는 http://localhost:3000)
+
+명령:
+  login   -e <email> -p <password> [-t <totp>] [-u <url>]   로그인 → 토큰 저장
+  whoami                                                     현재 세션 사용자
+  logout                                                     세션 삭제
+  register -f <정의.json>                                    API 등록 (url|endpoints|inline)
+  list                                                       가시 문서 전체
+  pending                                                    승인 대기 문서만
+  preview <id>                                               변환 미리보기 (ADMIN/SUPERVISOR)
+  approve <id>                                               해당 문서 승인 (ADMIN/SUPERVISOR)
+  reject  <id> -r <reason>                                   반려
+
+예시:  mcpctl -P user login -e us@x.com -p us1234
+       mcpctl -P user register -f cli/examples/endpoints.json
+       mcpctl -P admin login -e ad@x.com -p ad1234
+       mcpctl -P admin pending
+       mcpctl -P admin approve <id>
+EOF
+}
+
+# ───── 전역 옵션 선처리 (-P/-u) ─────
+ARGS=()
+while [ $# -gt 0 ]; do case "$1" in
+  -P|--profile) PROFILE="$2"; shift 2;;
+  -u|--url) DEFAULT_URL="$2"; shift 2;;  # login 외 명령에도 무해
+  *) ARGS+=("$1"); shift;;
+esac; done
+set -- "${ARGS[@]:-}"
+
+CMD="${1:-}"; shift || true
+case "$CMD" in
+  login)    cmd_login "$@";;
+  whoami)   cmd_whoami "$@";;
+  logout)   cmd_logout "$@";;
+  register) cmd_register "$@";;
+  list)     cmd_list "$@";;
+  pending)  cmd_pending "$@";;
+  preview)  cmd_preview "$@";;
+  approve)  cmd_approve "$@";;
+  reject)   cmd_reject "$@";;
+  ""|-h|--help|help) usage;;
+  *) die "알 수 없는 명령: $CMD (mcpctl --help)";;
+esac

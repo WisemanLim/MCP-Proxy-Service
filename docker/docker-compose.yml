@@ -1,5 +1,6 @@
 # 기본(make up): 인프라만 — postgres + redis. 앱(api/web/extractor)은 `make dev`로 네이티브 실행.
-# 풀 docker 빌드는 `make up-all` (docker-compose.full.yml 병합).
+# 풀 docker 빌드는 `make up-all` (docker/docker-compose.full.yml 병합).
+# 직접 실행: docker compose --project-directory . -f docker/docker-compose.yml up -d
 services:
   postgres:
     image: postgres:16-alpine

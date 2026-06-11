@@ -1,6 +1,7 @@
-# 풀 docker 빌드 오버레이 — `make up-all`로 base(docker-compose.yml)와 병합.
+# 풀 docker 빌드 오버레이 — `make up-all`로 base(docker/docker-compose.yml)와 병합.
 # 앱 3종을 이미지로 빌드해 기동. (네이티브 dev는 `make dev` 사용)
-# 사용: docker compose -f docker-compose.yml -f docker-compose.full.yml up -d --build
+# 직접: docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.full.yml up -d --build
+# 경로(context: . / dockerfile: apps/*/Dockerfile / env_file: .env.*)는 --project-directory(=repo root) 기준.
 services:
   api:
     build:

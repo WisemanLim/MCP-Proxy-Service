@@ -2,11 +2,14 @@
 
 ENV ?= local
 
-FULL := docker compose -f docker-compose.yml -f docker-compose.full.yml
+# 컴포즈 파일은 docker/ 로 이동. --project-directory . 로 compose 내부 상대경로(context·env_file)를
+# repo root 기준 해석 → 컴포즈 파일 내용 무수정, 프로젝트명(=root dir)·볼륨명 유지.
+COMPOSE := docker compose --project-directory . -f docker/docker-compose.yml
+FULL    := $(COMPOSE) -f docker/docker-compose.full.yml
 
-up:       ; docker compose up -d        # 인프라만(postgres+redis). 앱은 make dev
-up-all:   ; $(FULL) up -d --build       # 풀 docker: 인프라 + api/web/extractor 빌드·기동
-down:     ; docker compose down
+up:       ; $(COMPOSE) up -d             # 인프라만(postgres+redis). 앱은 make dev
+up-all:   ; $(FULL) up -d --build        # 풀 docker: 인프라 + api/web/extractor 빌드·기동
+down:     ; $(COMPOSE) down
 down-all: ; $(FULL) down
 install: ; pnpm install && cd python/extractor && uv sync
 

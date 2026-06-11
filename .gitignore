@@ -50,3 +50,4 @@ api-samples/spring-boot/build/
 # node: pnpm-lock.yaml, python: uv.lock 은 추적 (무시 금지)
 !pnpm-lock.yaml
 !uv.lock
+.gstack/
