@@ -18,6 +18,7 @@ HTML/PDF/Markdown) and it automates the whole flow: analyze → normalize → ge
 - **Auth**: securitySchemes parsing (apiKey/Bearer/Basic/OAuth2/OIDC), header/query/cookie injection, secrets via external reference (`${ENV}`·`secretRef`)
 - **Structured errors**: `INVALID_API_KEY`·`MISSING_SCOPE`·`AUTH_EXPIRED`·`UPSTREAM_AUTH_UNAVAILABLE`·`TIMEOUT`
 - **Two transports**: stdio (local host) + Streamable HTTP/SSE (remote·multi-agent) + `/health`
+- **HTML API doc auto-handling** *(P1)*: URLs returning Swagger UI / Redoc HTML can be registered directly — spec auto-extracted via 3-stage discovery: ① JS `url: "..."` pattern → ② `<a href>` JSON/YAML links → ③ 8 common origin paths (`/openapi.json`, `/v3/api-docs`, etc.)
 - **Unstructured extraction**: LLM draft + static validation + confidence/unresolved (Python)
 
 ## Layout
@@ -81,6 +82,7 @@ SUPERVISOR is auto-created once on first boot from `.env`. Built on: bcrypt · o
 
 **API doc (OpenAPI) registration·approval** (PRD §4.1 A1) — **two modes**
 - ① **Schema link**: register an OpenAPI URL (e.g. `…/openapi.json`, `…/v3/api-docs`)
+  - **HTML response auto-handling** (P1): URLs returning Swagger UI / Redoc HTML are supported. 3-stage auto-discovery: ① JS `url: "..."` pattern → ② `<a href>` JSON/YAML links → ③ 8 common origin paths (`/openapi.json`, `/v3/api-docs`, etc.). If all fail, returns a descriptive error prompting for the direct spec URL.
 - ② **Per-endpoint**: add individual REST endpoints (method+path) one by one (Swagger-style) → OpenAPI spec auto-synthesized. `{param}` in the path becomes a path parameter automatically.
 - Common: USER **creates·edits·deletes** (any change → `pending`) → ADMIN/SUPERVISOR **reviews the request** (URL fetch/synthesis + conversion preview) → **approve** if normal / **reject** with reason. ADMIN = same org, SUPERVISOR = all.
 - **Auto-launch proxy on approval**: on approve → **auto-assign a free port ≥20000** (excludes duplicates and OS-in-use ports, persisted in DB) → write spec.json·manifest.json then **auto-spawn** `apps/api/dist/main.js` with `TRANSPORT=http`. Auto-stopped on reject/edit/delete; **reconciled** (restarted, reusing the stored port) for approved docs on web boot. Status at `GET /api/apidocs/:id/proxy`. → no manual run needed for "Server disconnected".

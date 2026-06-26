@@ -1,6 +1,7 @@
 import "server-only";
 import type { DatabaseSync } from "node:sqlite";
 import { loadSpecFromString, loadSpecInline, convert, type OpenAPISpec } from "@mcp-proxy/converter";
+import { extractSpecFromHtml } from "../html-spec-extractor";
 import { parseManifest } from "@mcp-proxy/manifest";
 import type { JwtClaims } from "./auth-server";
 import { AuthError } from "./auth-server";
@@ -206,7 +207,12 @@ async function loadSpec(db: DatabaseSync, doc: ApiDocRow): Promise<OpenAPISpec> 
   if (doc.source_type === "url" && doc.source_ref) {
     const res = await fetch(doc.source_ref);
     if (!res.ok) throw new AuthError(`upstream_fetch_failed_${res.status}`, 502);
-    return loadSpecFromString(await res.text());
+    const text = await res.text();
+    if (text.trimStart().startsWith("<")) {
+      try { return await extractSpecFromHtml(text, doc.source_ref); }
+      catch (e) { throw new AuthError((e as Error).message, 400); }
+    }
+    return loadSpecFromString(text);
   }
   throw new AuthError("no_spec_source", 400);
 }

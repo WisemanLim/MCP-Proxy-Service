@@ -17,6 +17,7 @@
 - **인증**: securitySchemes 파싱(apiKey/Bearer/Basic/OAuth2/OIDC), header/query/cookie 주입, 비밀은 외부 secret 참조(`${ENV}`·`secretRef`)
 - **구조화 오류**: `INVALID_API_KEY`·`MISSING_SCOPE`·`AUTH_EXPIRED`·`UPSTREAM_AUTH_UNAVAILABLE`·`TIMEOUT`
 - **운송 2종**: stdio(로컬 호스트) + Streamable HTTP/SSE(원격·멀티에이전트) + `/health`
+- **HTML API 문서 자동 처리** *(P1)*: Swagger UI / Redoc 등 HTML 응답 URL 등록 시 스펙 자동 추출 — JS `url:` 패턴 → `<a href>` JSON/YAML 링크 → origin 공통 경로(8개) 3단계 탐색
 - **비정형 문서 추출**: LLM 초안 + 정적 검증 + confidence/unresolved (Python)
 
 ## 구조
@@ -82,6 +83,7 @@ SUPERVISOR는 `.env`로 첫 부팅 시 1회 자동 생성. 기반: bcrypt · otp
 
 **API 문서(OpenAPI) 등록·승인** (PRD §4.1 A1) — **2가지 모드**
 - ① **스키마 링크**: OpenAPI URL 등록 (예: `…/openapi.json`, `…/v3/api-docs`)
+  - **HTML 응답 자동 처리** (P1): Swagger UI / Redoc 등 HTML로 응답하는 URL도 등록 가능. 3단계 자동 탐색: ① JS `url: "..."` 패턴 → ② `<a href>` JSON/YAML 링크 → ③ origin 공통 경로(`/openapi.json`, `/v3/api-docs` 등 8개). 탐색 실패 시 직접 스펙 URL 입력 안내.
 - ② **개별 등록**: 개별 REST API(메서드+경로)를 하나씩 추가(Swagger식) → OpenAPI 스펙 자동 합성. 경로의 `{param}`은 path 파라미터로 자동 변환.
 - 공통: USER가 **등록·수정·삭제**(변경 시 `pending`) → ADMIN/SUPERVISOR가 **요청 확인**(URL fetch/합성 + 변환 미리보기) → 정상 **승인** / 비정상 **반려**(사유). ADMIN=같은 조직, SUPERVISOR=전체.
 - **승인 시 프록시 자동 기동**: 문서 승인 → **20000+ 빈 포트 자동 할당**(중복·OS 사용 중 제외, DB 영속화) → spec.json·manifest.json 기록 후 `apps/api/dist/main.js`를 `TRANSPORT=http`로 **자동 spawn**. 반려/수정/삭제 시 자동 중지, 웹 부팅 시 승인 문서 **재기동(reconcile, 저장 포트 재사용)**. 상태는 `GET /api/apidocs/:id/proxy`. → "Server disconnected" 수동 실행 불필요.
