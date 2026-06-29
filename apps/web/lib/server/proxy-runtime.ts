@@ -28,6 +28,11 @@ type Proc = { proc: ChildProcess; port: number; baseUrl: string; startedAt: numb
 const g = globalThis as unknown as { __mcpProxies?: Map<string, Proc> };
 const procs: Map<string, Proc> = (g.__mcpProxies ??= new Map());
 
+/** appBaseUrl hostname — 프록시 URL에 사용 (localhost 대신 실제 서버 IP). */
+function proxyHost(): string {
+  try { return new URL(AuthConfig.appBaseUrl).hostname; } catch { return "localhost"; }
+}
+
 /** 포트가 비어 있는지 OS 바인드로 확인 (127.0.0.1). */
 export function isPortFree(port: number): Promise<boolean> {
   return new Promise((res) => {
@@ -83,7 +88,7 @@ export type ProxyStatus = { running: boolean; port: number | null; url: string |
 export function proxyStatus(docId: string, assignedPort: number | null): ProxyStatus {
   const p = procs.get(docId);
   const port = p?.port ?? assignedPort ?? null;
-  const url = port ? `http://localhost:${port}/mcp` : null;
+  const url = port ? `http://${proxyHost()}:${port}/mcp` : null;
   if (p && p.proc.exitCode === null && !p.proc.killed) return { running: true, port, url, startedAt: p.startedAt };
   return { running: false, port, url };
 }
@@ -109,11 +114,11 @@ export function killAllProxies(): void {
  * main.js 미빌드면 error 반환(가이드 수동 실행 폴백).
  */
 export function startProxy(opts: {
-  docId: string; name: string; baseUrl: string | null; spec: OpenAPISpec; port: number;
+  docId: string; name: string; baseUrl: string | null; spec: OpenAPISpec; port: number; extraArgs?: string[];
 }): ProxyStatus {
   const { docId, name, port } = opts;
-  const baseUrl = opts.baseUrl ?? opts.spec.servers?.[0]?.url ?? "https://example.com";
-  const url = `http://localhost:${port}/mcp`;
+  const baseUrl = opts.baseUrl || opts.spec.servers?.[0]?.url || "https://example.com";
+  const url = `http://${proxyHost()}:${port}/mcp`;
 
   const main = mainJsPath();
   if (!main) return { running: false, port, url, error: "apps/api 미빌드 — `pnpm --filter @mcp-proxy/api build` 후 자동 기동" };
@@ -132,15 +137,17 @@ export function startProxy(opts: {
 
   // 사용내역 보고 → 플랫폼 ingest 엔드포인트(docId별). 토큰은 공유 USAGE_TOKEN.
   const usageUrl = `${AuthConfig.appBaseUrl.replace(/\/$/, "")}/api/apidocs/${docId}/usage`;
-  const proc = spawn(process.execPath, [main], {
+  const spawnArgs = opts.extraArgs?.length ? [main, ...opts.extraArgs] : [main];
+  const proc = spawn(process.execPath, spawnArgs, {
     env: {
       ...process.env,
       TRANSPORT: "http", PORT: String(port), SPEC_PATH: specPath, MANIFEST_PATH: manifestPath,
       USAGE_REPORT_URL: usageUrl, USAGE_TOKEN: AuthConfig.usageToken,
     },
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "pipe"],
     detached: false,
   });
+  proc.stderr?.on("data", (d: Buffer) => console.error(`[proxy:${docId}] ${d.toString().trim()}`));
   proc.on("exit", (code) => {
     const cur = procs.get(docId);
     if (cur && cur.proc === proc) procs.delete(docId);

@@ -31,7 +31,7 @@ export default function McpGuide({ doc, onClose }: { doc: ApiDoc; onClose: () =>
   // 프록시 포트 = 승인 시 자동 할당된 포트(≥20000). 상태 API에서 동적으로 가져온다.
   const proxyPort = proxy?.port ?? null;
   const portTxt = proxyPort ?? "<승인 시 자동 할당>";
-  const proxyUrl = proxy?.url ?? `http://localhost:${portTxt}/mcp`;
+  const proxyUrl = proxy?.url ?? `http://${typeof window !== "undefined" ? window.location.hostname : "localhost"}:${portTxt}/mcp`;
 
   const manifest = JSON.stringify(
     { name: slug, baseUrl, specUrl: undefined, fieldsPolicy: { defaultLimit: 20, truncateBytes: 2048, maxDepth: 4 } },
@@ -56,7 +56,9 @@ export default function McpGuide({ doc, onClose }: { doc: ApiDoc; onClose: () =>
   const httpRun = `TRANSPORT=http PORT=${portTxt} \\\n  SPEC_PATH=./openapi.json MANIFEST_PATH=./manifest.json \\\n  node apps/api/dist/main.js`;
 
   // Claude Desktop은 {url} 직접 미지원 → mcp-remote 브리지를 stdio command로 사용.
-  const httpConfig = JSON.stringify({ mcpServers: { [slug]: { command: "npx", args: ["mcp-remote", proxyUrl] } } }, null, 2);
+  const isHttp = proxyUrl.startsWith("http://");
+  const mcpRemoteArgs = isHttp ? ["mcp-remote", proxyUrl, "--allow-http"] : ["mcp-remote", proxyUrl];
+  const httpConfig = JSON.stringify({ mcpServers: { [slug]: { command: "npx", args: mcpRemoteArgs } } }, null, 2);
   // Cursor 등 HTTP 전송 지원 클라이언트용 (직접 url)
   const httpConfigDirect = JSON.stringify({ mcpServers: { [slug]: { url: proxyUrl } } }, null, 2);
 

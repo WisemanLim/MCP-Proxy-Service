@@ -3,7 +3,11 @@ FROM node:20-slim
 RUN corepack enable
 WORKDIR /app
 COPY . .
-RUN pnpm install --frozen-lockfile && pnpm --filter @mcp-proxy/web build
+RUN pnpm install --frozen-lockfile && \
+    pnpm --filter @mcp-proxy/manifest build && \
+    pnpm --filter @mcp-proxy/converter build && \
+    pnpm --filter @mcp-proxy/api build && \
+    pnpm --filter @mcp-proxy/web build
 WORKDIR /app/apps/web
 EXPOSE 3000
 CMD ["pnpm", "start"]

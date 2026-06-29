@@ -5,6 +5,7 @@ import { extractSpecFromHtml } from "../html-spec-extractor";
 import { parseManifest } from "@mcp-proxy/manifest";
 import type { JwtClaims } from "./auth-server";
 import { AuthError } from "./auth-server";
+import { AuthConfig } from "./config";
 import { startProxy, stopProxy, allocateProxyPort, killAllProxies, isPortFree, PORT_MIN, PORT_MAX } from "./proxy-runtime";
 import { setApiDocProxyPort, findDocIdByProxyPort } from "./db";
 import {
@@ -197,6 +198,16 @@ function canReview(actor: JwtClaims, doc: ApiDocRow): boolean {
   return false;
 }
 
+/** 상대경로 서버 URL(예: /api/v1)을 sourceRef origin으로 resolve. 절대 URL이면 그대로 반환. */
+function resolveBaseUrl(serverUrl: string | undefined, sourceRef: string | null | undefined): string {
+  if (!serverUrl) return "https://example.com";
+  if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) return serverUrl;
+  if (sourceRef) {
+    try { return new URL(sourceRef).origin + serverUrl; } catch {}
+  }
+  return "https://example.com";
+}
+
 async function loadSpec(db: DatabaseSync, doc: ApiDocRow): Promise<OpenAPISpec> {
   if (doc.source_type === "endpoints") {
     const eps = listEndpoints(db, doc.id);
@@ -224,7 +235,7 @@ export async function previewDoc(db: DatabaseSync, actor: JwtClaims, id: string)
   if (!canReview(actor, doc)) throw new AuthError("forbidden", 403);
   try {
     const spec = await loadSpec(db, doc);
-    const effectiveBaseUrl = doc.base_url ?? spec.servers?.[0]?.url ?? "https://example.com";
+    const effectiveBaseUrl = doc.base_url ?? resolveBaseUrl(spec.servers?.[0]?.url, doc.source_ref);
     const r = convert(spec, parseManifest({ baseUrl: effectiveBaseUrl }));
     const upstream = await probeUpstream(effectiveBaseUrl);
     return {
@@ -248,7 +259,7 @@ export async function approveDoc(db: DatabaseSync, actor: JwtClaims, id: string)
   let spec;
   try {
     spec = await loadSpec(db, doc);
-    toolsCount = convert(spec, parseManifest({ baseUrl: doc.base_url ?? spec.servers?.[0]?.url ?? "https://example.com" })).plan.tools.length;
+    toolsCount = convert(spec, parseManifest({ baseUrl: doc.base_url ?? resolveBaseUrl(spec.servers?.[0]?.url, doc.source_ref) })).plan.tools.length;
   } catch (e) {
     throw new AuthError(`cannot_approve_invalid_spec: ${(e as Error).message}`, 400);
   }
@@ -269,7 +280,7 @@ export async function testDoc(db: DatabaseSync, actor: JwtClaims, id: string) {
   if (doc.owner_id !== actor.sub && !canReview(actor, doc)) throw new AuthError("forbidden", 403);
   try {
     const spec = await loadSpec(db, doc);
-    const effectiveBaseUrl = doc.base_url ?? spec.servers?.[0]?.url ?? "https://example.com";
+    const effectiveBaseUrl = doc.base_url ?? resolveBaseUrl(spec.servers?.[0]?.url, doc.source_ref);
     const r = convert(spec, parseManifest({ baseUrl: effectiveBaseUrl }));
     const upstream = await probeUpstream(effectiveBaseUrl);
     return {
@@ -315,7 +326,11 @@ export async function docProxyStatus(db: DatabaseSync, actor: JwtClaims, id: str
     try { await ensureProxyRunning(db, doc); st = proxyStatus(id, findApiDocById(db, id)!.proxy_port); }
     catch (e) { return { ...st, error: (e as Error).message }; }
   }
-  return st;
+  // Return the external proxied URL (works in Docker — no dynamic port exposure needed).
+  const externalUrl = st.port
+    ? `${AuthConfig.appBaseUrl.replace(/\/$/, "")}/api/apidocs/${id}/mcp`
+    : null;
+  return { ...st, url: externalUrl };
 }
 
 /** 프록시 강제 재시작 — 현재 코드/dist로 stopProxy + 재spawn (옛 바이너리·env 드리프트 복구). */

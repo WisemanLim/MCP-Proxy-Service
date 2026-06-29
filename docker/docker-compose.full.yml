@@ -1,32 +1,23 @@
 # 풀 docker 빌드 오버레이 — `make up-all`로 base(docker/docker-compose.yml)와 병합.
-# 앱 3종을 이미지로 빌드해 기동. (네이티브 dev는 `make dev` 사용)
+# web + extractor 빌드·기동. api 프록시는 web 컨테이너 내부에서 승인 문서별 자동 spawn(별도 컨테이너 불필요).
+# web Dockerfile이 api dist도 함께 빌드하므로 mainJsPath()가 컨테이너 내부 경로를 찾을 수 있음.
 # 직접: docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.full.yml up -d --build
 # 경로(context: . / dockerfile: apps/*/Dockerfile / env_file: .env.*)는 --project-directory(=repo root) 기준.
 services:
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    env_file:
-      - .env.${ENV:-dev}
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     env_file:
       - .env.${ENV:-dev}
-    ports:
-      - "3000:3000"
+    network_mode: host
+    volumes:
+      - webdata:/app/apps/web/var
     depends_on:
-      - api
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   extractor:
     build:
@@ -35,7 +26,10 @@ services:
     env_file:
       - .env.${ENV:-dev}
     ports:
-      - "8000:8000"
+      - "8001:8001"
     depends_on:
       postgres:
         condition: service_healthy
+
+volumes:
+  webdata:
